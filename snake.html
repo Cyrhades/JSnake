@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<title>JSnake By Cyrhades</title>
+	</head>
+	<body>
+		<canvas id="game" width="400" height="400"></canvas>
+		<script>
+		'use strict';
+		// Information sur le jeu
+		var canvas, context, startGame;
+		var map = 20;
+
+		// Pour gérer le niveau de diffculté
+		var difficulty = 1, enableCollision = true;
+
+		// Infos du serpent
+		var snakeSize, snakeX, snakeY, snakePosition = [];
+
+		// Gestion du déplacement
+		var moveX, moveY;
+
+		// Position de la pomme
+		var appleX,  appleY;
+
+		// Pour avoir une image comme pomme
+		var realApple = false;
+
+
+
+		function loopGame(width, height) 
+		{
+			snakeX += moveX;
+			snakeY += moveY;
+			
+			if (enableCollision) {
+				// si le serpent touche un mur il mort (seulement si collision active)
+				if(snakeX < -1 || snakeX > map || snakeY < -1 || snakeY > map) {
+					die();
+				}
+			} else {
+				if(snakeX < 0) 					snakeX = map-1;
+				else if(snakeX > map-1) 		snakeX = 0;
+				else if(snakeY < 0) 			snakeY = map-1;
+				else if(snakeY > map-1)			snakeY = 0;
+				
+			}
+
+			// Couleur de fond
+			this.fillStyle = '#555555';
+			this.fillRect(0,0,width,height);
+
+
+			//
+			this.fillStyle = "#40ff40";
+			for(var i=0;i<snakePosition.length;i++) {
+				this.fillRect(snakePosition[i].x*map,snakePosition[i].y*map,map-2,map-2);
+				
+				if(snakePosition[i].x==snakeX && snakePosition[i].y==snakeY) {
+					// si le serpent se touche il mort
+					if (snakeSize > 5) { die(); }
+					snakeSize = 5;
+				}
+			}
+			
+			snakePosition.push({x:snakeX,y:snakeY});
+			while(snakePosition.length>snakeSize) {
+				snakePosition.shift();
+			}
+			
+			// si la pomme est touché par le serpent
+			if(appleX==snakeX && appleY==snakeY) {
+				// le serpent augmente de 1
+				snakeSize++;
+				// On repositionne la pomme
+				applePosition();
+			}
+			
+			// On utilise une image
+			if (realApple) {
+				var image = new Image();
+				image.src = "data:image/png;base64,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";
+				this.drawImage(image,appleX*map,appleY*map,map,map);
+			} else {
+				this.fillStyle = '#B42121';
+				this.fillRect(appleX*map,appleY*map,map,map);
+			}
+		}
+
+		function applePosition()
+		{
+			appleX = Math.floor(Math.random()*map);
+			appleY = Math.floor(Math.random()*map);
+		}
+
+		function pressKeyBoard()
+		{
+			if (event.keyCode != 27 && startGame == null) return;
+			switch(event.keyCode) 
+			{
+				// Déplacement vers la gauche
+				case 37:
+					moveX=-1;
+					moveY=0;
+					break;
+				// Déplacement vers le haut
+				case 38:
+					moveX=0;
+					moveY=-1;
+					break;
+				// Déplacement vers la droite
+				case 39:
+					moveX=1;
+					moveY=0;
+					break;
+				// Déplacement vers le bas
+				case 40:
+					moveX=0;
+					moveY=1;
+					break;
+				// Mettre en pause / play avec le bouton ECHAP
+				case 27 :
+					if (startGame == null) {
+						play();
+					}
+					else {
+						stop();
+					}
+					break;
+			}
+		}
+
+		function play()
+		{
+			startGame = setInterval(loopGame.bind(context, canvas.width, canvas.height),1000/10);
+		}
+
+		function stop()
+		{
+			if (startGame != null) {
+				clearInterval(startGame);
+				startGame = null;
+			}
+		}
+
+		// On charge le jeu avec les parametres par défaut
+		function load()
+		{
+			// On stop au cas ou
+			stop();
+			if (enableCollision) {
+				canvas.style.border = '15px ridge black';
+			}
+			// On défini les variables de base
+			snakeSize = 5, 
+			snakeX = 10, 
+			snakeY = 10, 
+			snakePosition = [],
+			moveX = 0, 
+			moveY = 0;
+			
+			// On n'accepte pas que la pomme se trouve à moins de N bloc
+			// du serpent pour le premier positionnement (N représentant la longueur de départ du serpent)
+			do {
+				applePosition();
+			}
+			while( 
+				snakeX <= appleX-snakeSize && snakeX >= appleX+snakeSize 
+				&& 
+				snakeY == appleY-snakeSize && snakeY >= appleY+snakeSize
+			);
+
+			// On démarre le jeu
+			play();
+		}
+
+		function die()
+		{
+			load();
+			alert("Vous êtes mort !");
+		}
+
+		document.addEventListener('DOMContentLoaded', function() {
+
+			// On crée la zone de jeu (canvas)
+			canvas = document.querySelector("#game");
+			context = canvas.getContext("2d");
+			// on ajoute un écouteur d'événement
+			document.addEventListener("keydown",pressKeyBoard);
+			// On charge le jeu
+			load();
+		});
+		</script>
+	</body>
+</html>
